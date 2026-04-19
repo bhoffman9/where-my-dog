@@ -1,0 +1,22 @@
+{
+  "name": "where-my-dog",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "posters": "node scripts/generate-posters.js"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow-models/coco-ssd": "^2.2.3"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.1"
+  }
+}
