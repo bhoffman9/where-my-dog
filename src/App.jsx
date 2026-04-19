@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MOVIE_PUNS, slugify } from './data/puns.js';
+import { POSTER_SLUGS } from './data/poster-manifest.js';
+
+const PUNS_WITH_POSTERS = MOVIE_PUNS.filter((p) => POSTER_SLUGS.has(slugify(p.dog)));
 
 const COLORS = {
   bg: '#0b0d10',
@@ -216,7 +219,7 @@ function rollResult(hasDog) {
         confidence: null,
       };
     }
-    if (streak > 15) {
+    if (streak >= 6 && Math.random() < 0.5) {
       const p = pick(PUNISHMENTS);
       return {
         verdict: 'none',
@@ -258,7 +261,7 @@ function loadImage(src) {
 
 export default function App() {
   const [view, setView] = useState('entrance');
-  const [welcomePun] = useState(() => pick(MOVIE_PUNS));
+  const [welcomePun] = useState(() => pick(PUNS_WITH_POSTERS.length ? PUNS_WITH_POSTERS : MOVIE_PUNS));
   const [result, setResult] = useState(null);
   const [photo, setPhoto] = useState(null);
   const [log, setLog] = useState(() => {

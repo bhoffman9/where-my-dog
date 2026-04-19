@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/write-manifest.js",
     "build": "vite build",
     "preview": "vite preview",
-    "posters": "node scripts/generate-posters.js"
+    "posters": "node scripts/generate-posters.js && node scripts/write-manifest.js",
+    "manifest": "node scripts/write-manifest.js"
   },
   "dependencies": {
     "react": "^18.3.1",

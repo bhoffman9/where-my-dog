@@ -98,11 +98,11 @@ OPENAI_API_KEY=sk-... npm run posters
 ```
 
 - Default: `gpt-image-1`, `1024×1536` portrait, `high` quality, concurrency 3
-- Cost: ~$0.167/image × 142 = **~$23.70 max** (skips files already in `public/posters/`)
+- **Cost (portrait high): ~$0.25/image** × 142 = **~$35.50 max** (skips files already in `public/posters/`). The $0.167 figure OpenAI publishes is for 1024×1024 (square) at high quality — portrait is ~50% more. Also check your account's **hard spending limit** at platform.openai.com/settings/organization/limits before running; it's separate from your balance and will abort the run mid-batch if hit.
 - Requires OpenAI org **identity verification** for gpt-image-1 access
-- Runtime: ~15–20 min depending on OpenAI tier
+- Runtime: ~30–35 min at concurrency 3 for a full 142-poster run
 - Tunable via env vars: `MODEL`, `SIZE`, `QUALITY` (`low` / `medium` / `high`), `CONCURRENCY`
-- Budget alternative: `QUALITY=medium` (~$6 total, still > DALL-E 3 quality)
+- Budget alternative: `QUALITY=medium` (~$6 total, still beats DALL-E 3)
 - Idempotent — re-runs only generate missing files
 - Response handling: gpt-image-1 returns `b64_json`; DALL-E 3 returns `url`. Script handles both.
 
