@@ -116,9 +116,6 @@ const NOT_HERE_SUBTITLES = [
 
 const NO_DOG_STREAK_KEY = 'wmd_no_dog_streak';
 const STREAK_TIERS = [
-  { at: 30, label: 'Dog Punishment #3: The Unscratchable Itch.', sub: (n) => `${n} scans. Somewhere on your back. Forever.` },
-  { at: 25, label: 'Dog Punishment #2: Lyme Disease.', sub: (n) => `${n} scans. You should see a doctor. And a dog.` },
-  { at: 20, label: 'Dog Punishment #1: You Have Been Given Fleas.', sub: (n) => `${n} scans without a dog. This is how it begins.` },
   { at: 15, label: 'Ask Forgiveness from the Dog Priest.', sub: (n) => `${n} scans. We will pray for you.` },
   { at: 10, label: 'Dog Pound.', sub: (n) => `No successful hits in the last ${n} scans.` },
   { at: 5, label: 'Do You Even Have a Dog?', sub: (n) => `${n} scans. Zero dogs. Just asking.` },
@@ -164,7 +161,7 @@ function rollResult(hasDog) {
   if (!hasDog) {
     const streak = readStreak() + 1;
     writeStreak(streak);
-    const tier = STREAK_TIERS.find((t) => streak >= t.at);
+    const tier = STREAK_TIERS.find((t) => streak === t.at);
     if (tier) {
       return {
         verdict: 'none',
