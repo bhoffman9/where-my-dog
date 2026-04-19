@@ -115,7 +115,9 @@ const NOT_HERE_SUBTITLES = [
 ];
 
 const NO_DOG_STREAK_KEY = 'wmd_no_dog_streak';
-const STREAK_THRESHOLD = 10;
+const STREAK_ASK = 10;
+const STREAK_POUND = 25;
+const STREAK_PRIEST = 50;
 
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -157,7 +159,23 @@ function rollResult(hasDog) {
   if (!hasDog) {
     const streak = readStreak() + 1;
     writeStreak(streak);
-    if (streak >= STREAK_THRESHOLD) {
+    if (streak >= STREAK_PRIEST) {
+      return {
+        verdict: 'none',
+        label: 'Ask Forgiveness from the Dog Priest.',
+        subtitle: `${streak} scans without a dog. We will pray for you.`,
+        confidence: null,
+      };
+    }
+    if (streak >= STREAK_POUND) {
+      return {
+        verdict: 'none',
+        label: 'Dog Pound.',
+        subtitle: `No successful hits in the last ${streak} scans.`,
+        confidence: null,
+      };
+    }
+    if (streak >= STREAK_ASK) {
       return {
         verdict: 'none',
         label: 'Do You Even Have a Dog?',
