@@ -45,6 +45,38 @@ const NOT_HERE_MESSAGES = [
   'Empty.',
   'Searched. Found Nothing.',
   'The Dog Is Elsewhere.',
+  'Undetectable.',
+  'Unaccounted For.',
+  'Presumed Napping.',
+  'Off the Grid.',
+  'Absconded.',
+  'Missing from This Frame.',
+  'A Dog-Shaped Hole.',
+  'Conspicuously Absent.',
+  'No Canine Signal.',
+  'Patrol Report: Empty.',
+  'The Dog Has Left the Chat.',
+  'Zero Tails Detected.',
+  'Hiding, Allegedly.',
+  'A Silence Where a Dog Should Be.',
+  'Currently Off-Duty.',
+  'Unphotographed.',
+  'Out of Sight.',
+  'Elusive.',
+  'No Paws, No Proof.',
+  'Signal Lost.',
+  'Investigation Ongoing.',
+  'Not Pictured.',
+  'Last Seen Elsewhere.',
+  'A Room Without a Dog.',
+  'Mathematically Dogless.',
+  'The Dog Eludes Us.',
+  'A Perfect Absence.',
+  'Canine Status: 404.',
+  'Dog: Offline.',
+  'The Dog Is Not Available at This Time.',
+  'A Frame in Want of a Dog.',
+  'No Such Dog.',
 ];
 
 const NOT_HERE_SUBTITLES = [
@@ -56,7 +88,34 @@ const NOT_HERE_SUBTITLES = [
   'No tail. No paw. No dog.',
   'Vibe check: dogless.',
   'A profound emptiness.',
+  'Recommend: open the back door.',
+  'Yard sweep advised.',
+  'Check the laundry pile.',
+  'Perhaps under the table.',
+  'The dog knows.',
+  'Sniff test: negative.',
+  'We regret to inform you.',
+  'Try calling their name.',
+  'Rattle a treat bag.',
+  'The shadows yield nothing.',
+  'Check behind the curtain.',
+  'A meditation on absence.',
+  'Commence perimeter scan.',
+  'Shake a leash. Stand back.',
+  'Suspiciously quiet.',
+  'Look where you last left them.',
+  'Field conditions: empty.',
+  'Await their return.',
+  'The air holds no bark.',
+  'Is the window open?',
+  'Behind the refrigerator?',
+  'We cannot help you.',
+  'Try the car.',
+  'Somewhere, but not here.',
 ];
+
+const NO_DOG_STREAK_KEY = 'wmd_no_dog_streak';
+const STREAK_THRESHOLD = 10;
 
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -81,8 +140,31 @@ function pollinationsPosterUrl(pun) {
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?model=flux&width=512&height=768&seed=${seed}&nologo=true`;
 }
 
+function readStreak() {
+  try {
+    const n = parseInt(localStorage.getItem(NO_DOG_STREAK_KEY) || '0', 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeStreak(n) {
+  try { localStorage.setItem(NO_DOG_STREAK_KEY, String(n)); } catch {}
+}
+
 function rollResult(hasDog) {
   if (!hasDog) {
+    const streak = readStreak() + 1;
+    writeStreak(streak);
+    if (streak >= STREAK_THRESHOLD) {
+      return {
+        verdict: 'none',
+        label: 'Do You Even Have a Dog?',
+        subtitle: `${streak} scans. Zero dogs. Just asking.`,
+        confidence: null,
+      };
+    }
     return {
       verdict: 'none',
       label: pick(NOT_HERE_MESSAGES),
@@ -90,6 +172,7 @@ function rollResult(hasDog) {
       confidence: null,
     };
   }
+  writeStreak(0);
   if (Math.random() < 0.05) {
     return {
       verdict: 'animal',
