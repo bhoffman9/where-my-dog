@@ -259,9 +259,26 @@ function loadImage(src) {
   });
 }
 
+function useTypewriter(text, speed = 30) {
+  const [displayed, setDisplayed] = useState('');
+  useEffect(() => {
+    if (!text) { setDisplayed(''); return; }
+    setDisplayed('');
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(id);
+    }, speed);
+    return () => clearInterval(id);
+  }, [text, speed]);
+  return displayed;
+}
+
+
 export default function App() {
   const [view, setView] = useState('entrance');
-  const [welcomePun] = useState(() => pick(PUNS_WITH_POSTERS.length ? PUNS_WITH_POSTERS : MOVIE_PUNS));
+  const [welcomePun, setWelcomePun] = useState(() => pick(PUNS_WITH_POSTERS.length ? PUNS_WITH_POSTERS : MOVIE_PUNS));
   const [result, setResult] = useState(null);
   const [photo, setPhoto] = useState(null);
   const [log, setLog] = useState(() => {
@@ -271,8 +288,11 @@ export default function App() {
       return [];
     }
   });
+  const [noDogStreak, setNoDogStreak] = useState(() => readStreak());
   const [animatedConf, setAnimatedConf] = useState(0);
   const [modelStatus, setModelStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const [shareBlob, setShareBlob] = useState(null);
+  const [shareUrl, setShareUrl] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -372,6 +392,7 @@ export default function App() {
     await minWait;
 
     const r = rollResult(hasDog);
+    setNoDogStreak(readStreak());
     setResult(r);
     setView('result');
     const entry = {
@@ -393,6 +414,7 @@ export default function App() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !video.videoWidth) return;
+    navigator.vibrate?.(40);
     const w = video.videoWidth;
     const h = video.videoHeight;
     canvas.width = w;
@@ -418,7 +440,7 @@ export default function App() {
     setView('camera');
   }
 
-  function shareCard() {
+  function stageShareCard() {
     if (!photo || !result) return;
     const canvas = document.createElement('canvas');
     canvas.width = 1080;
@@ -487,15 +509,40 @@ export default function App() {
 
       canvas.toBlob((blob) => {
         if (!blob) return;
-        const file = new File([blob], `where-my-dog-${Date.now()}.png`, { type: 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], title: 'Where My Dog' }).catch(() => downloadBlob(blob));
-        } else {
-          downloadBlob(blob);
-        }
+        if (shareUrl) URL.revokeObjectURL(shareUrl);
+        const url = URL.createObjectURL(blob);
+        setShareBlob(blob);
+        setShareUrl(url);
       }, 'image/png');
     };
     img.src = photo;
+  }
+
+  function confirmShare() {
+    if (!shareBlob) return;
+    const file = new File([shareBlob], `where-my-dog-${Date.now()}.png`, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Where My Dog' }).catch(() => downloadBlob(shareBlob));
+    } else {
+      downloadBlob(shareBlob);
+    }
+    cancelShare();
+  }
+
+  function cancelShare() {
+    if (shareUrl) URL.revokeObjectURL(shareUrl);
+    setShareBlob(null);
+    setShareUrl(null);
+  }
+
+  function rerollWelcomePun() {
+    const pool = PUNS_WITH_POSTERS.length ? PUNS_WITH_POSTERS : MOVIE_PUNS;
+    if (pool.length < 2) return;
+    let next;
+    do {
+      next = pick(pool);
+    } while (next.dog === welcomePun.dog);
+    setWelcomePun(next);
   }
 
   function downloadBlob(blob) {
@@ -525,10 +572,10 @@ export default function App() {
       paddingBottom: 'env(safe-area-inset-bottom)',
       paddingTop: 'env(safe-area-inset-top)',
     }}>
-      {view !== 'entrance' && <Header view={view} setView={setView} modelStatus={modelStatus} />}
+      {view !== 'entrance' && <Header view={view} setView={setView} modelStatus={modelStatus} streak={noDogStreak} />}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {view === 'entrance' && (
-          <EntranceView pun={welcomePun} onEnter={() => setView('camera')} />
+          <EntranceView pun={welcomePun} onEnter={() => setView('camera')} onNextPun={rerollWelcomePun} />
         )}
         {view === 'camera' && (
           <CameraView
@@ -546,20 +593,24 @@ export default function App() {
             photo={photo}
             animatedConf={animatedConf}
             onReset={reset}
-            onShare={shareCard}
+            onShare={stageShareCard}
           />
         )}
         {view === 'log' && <FieldLog log={log} onClear={clearLog} />}
       </div>
+      {shareUrl && (
+        <SharePreview url={shareUrl} onConfirm={confirmShare} onCancel={cancelShare} />
+      )}
     </div>
   );
 }
 
-function EntranceView({ pun, onEnter }) {
+function EntranceView({ pun, onEnter, onNextPun }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [src, setSrc] = useState(() => localPosterUrl(pun));
   const [triedFallback, setTriedFallback] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
 
   useEffect(() => {
     setSrc(localPosterUrl(pun));
@@ -594,6 +645,19 @@ function EntranceView({ pun, onEnter }) {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        @keyframes wmd-grain {
+          0% { transform: translate(0,0); }
+          10% { transform: translate(-5%,-10%); }
+          20% { transform: translate(-15%,5%); }
+          30% { transform: translate(7%,-25%); }
+          40% { transform: translate(-5%,25%); }
+          50% { transform: translate(-15%,10%); }
+          60% { transform: translate(15%,0%); }
+          70% { transform: translate(0%,15%); }
+          80% { transform: translate(3%,35%); }
+          90% { transform: translate(-10%,10%); }
+          100% { transform: translate(0,0); }
+        }
       `}</style>
       <div style={{ position: 'absolute', top: 24, left: 0, right: 0, textAlign: 'center' }}>
         <div style={{
@@ -615,62 +679,103 @@ function EntranceView({ pun, onEnter }) {
         color: COLORS.muted,
       }}>WELCOME TO</div>
 
-      <div style={{
-        width: 'min(240px, 60vw)',
-        aspectRatio: '2/3',
-        background: COLORS.surface,
-        borderRadius: 4,
-        overflow: 'hidden',
-        position: 'relative',
-        boxShadow: '0 16px 56px rgba(0,0,0,0.65), 0 0 0 1px rgba(244,120,32,0.15)',
-        flexShrink: 0,
-      }}>
-        {!imgLoaded && !imgError && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(110deg, #12151c 25%, #1a1f2a 50%, #12151c 75%)',
-            backgroundSize: '200% 100%',
-            animation: 'wmd-shimmer 1.6s linear infinite',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <div style={{
-              fontSize: 9,
-              color: COLORS.muted,
-              letterSpacing: 2,
-              fontFamily: '"IBM Plex Mono", monospace',
-              padding: '0 12px',
-              textAlign: 'center',
-            }}>GENERATING POSTER...</div>
-          </div>
-        )}
-        {imgError && (
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 48,
-            color: COLORS.muted,
-          }}>🐾</div>
-        )}
-        <img
-          src={src}
-          alt=""
-          onLoad={() => setImgLoaded(true)}
-          onError={handleError}
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div
+          onClick={() => imgLoaded && setZoomed(true)}
           style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            display: 'block',
-            opacity: imgLoaded ? 1 : 0,
-            transition: 'opacity 0.5s',
+            width: 'min(240px, 60vw)',
+            aspectRatio: '2/3',
+            background: COLORS.surface,
+            borderRadius: 4,
+            overflow: 'hidden',
+            position: 'relative',
+            boxShadow: '0 16px 56px rgba(0,0,0,0.65), 0 0 0 1px rgba(244,120,32,0.15)',
+            cursor: imgLoaded ? 'zoom-in' : 'default',
           }}
-        />
+        >
+          {!imgLoaded && !imgError && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(110deg, #12151c 25%, #1a1f2a 50%, #12151c 75%)',
+              backgroundSize: '200% 100%',
+              animation: 'wmd-shimmer 1.6s linear infinite',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <div style={{
+                fontSize: 9,
+                color: COLORS.muted,
+                letterSpacing: 2,
+                fontFamily: '"IBM Plex Mono", monospace',
+                padding: '0 12px',
+                textAlign: 'center',
+              }}>GENERATING POSTER...</div>
+            </div>
+          )}
+          {imgError && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 48,
+              color: COLORS.muted,
+            }}>🐾</div>
+          )}
+          <img
+            src={src}
+            alt=""
+            onLoad={() => setImgLoaded(true)}
+            onError={handleError}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+              opacity: imgLoaded ? 1 : 0,
+              transition: 'opacity 0.5s',
+            }}
+          />
+          {imgLoaded && (
+            <div style={{
+              position: 'absolute',
+              inset: '-30%',
+              pointerEvents: 'none',
+              opacity: 0.08,
+              mixBlendMode: 'overlay',
+              backgroundImage: "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>\")",
+              animation: 'wmd-grain 1.6s steps(8) infinite',
+            }} />
+          )}
+        </div>
+        {onNextPun && (
+          <button
+            onClick={onNextPun}
+            aria-label="Next poster"
+            style={{
+              position: 'absolute',
+              top: '50%',
+              right: -52,
+              transform: 'translateY(-50%)',
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: COLORS.surface,
+              border: `1px solid ${COLORS.primary}44`,
+              color: COLORS.primary,
+              fontFamily: '"IBM Plex Mono", monospace',
+              fontSize: 16,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+            }}
+          >▸</button>
+        )}
       </div>
 
       <div style={{ maxWidth: 720 }}>
@@ -734,11 +839,49 @@ function EntranceView({ pun, onEnter }) {
         onMouseUp={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = COLORS.primary; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = COLORS.primary; }}
       >[ ENTER ]</button>
+      {zoomed && (
+        <div
+          onClick={() => setZoomed(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.92)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            cursor: 'zoom-out',
+            padding: 24,
+          }}
+        >
+          <img
+            src={src}
+            alt=""
+            style={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
+              borderRadius: 4,
+            }}
+          />
+          <div style={{
+            position: 'absolute',
+            top: 32,
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            fontFamily: '"IBM Plex Mono", monospace',
+            fontSize: 10,
+            letterSpacing: 3,
+            color: COLORS.muted,
+          }}>TAP ANYWHERE TO CLOSE</div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Header({ view, setView, modelStatus }) {
+function Header({ view, setView, modelStatus, streak }) {
   const statusColor =
     modelStatus === 'ready' ? COLORS.green :
     modelStatus === 'error' ? COLORS.red :
@@ -747,6 +890,7 @@ function Header({ view, setView, modelStatus }) {
     modelStatus === 'ready' ? 'DETECTOR ONLINE' :
     modelStatus === 'error' ? 'DETECTOR OFFLINE' :
     'DETECTOR LOADING';
+  const isLoading = modelStatus === 'loading';
   return (
     <div style={{
       padding: '20px 16px 12px',
@@ -755,6 +899,12 @@ function Header({ view, setView, modelStatus }) {
       alignItems: 'center',
       justifyContent: 'space-between',
     }}>
+      <style>{`
+        @keyframes wmd-dotpulse {
+          0%, 100% { opacity: 0.35; }
+          50% { opacity: 1; }
+        }
+      `}</style>
       <div>
         <div style={{
           fontFamily: '"Barlow Condensed", sans-serif',
@@ -764,8 +914,21 @@ function Header({ view, setView, modelStatus }) {
           color: COLORS.primary,
           lineHeight: 1,
         }}>WHERE MY DOG</div>
-        <div style={{ fontSize: 10, color: statusColor, letterSpacing: 1.5, marginTop: 4 }}>
-          ● {statusText}
+        <div style={{ fontSize: 10, color: statusColor, letterSpacing: 1.5, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={isLoading ? { animation: 'wmd-dotpulse 1.2s ease-in-out infinite' } : undefined}>●</span>
+          <span>{statusText}</span>
+          {streak > 0 && (
+            <span style={{
+              marginLeft: 4,
+              padding: '2px 8px',
+              border: `1px solid ${COLORS.muted}66`,
+              borderRadius: 12,
+              color: streak >= 15 ? COLORS.red : streak >= 10 ? COLORS.accent : COLORS.muted,
+              fontSize: 9,
+              letterSpacing: 1.5,
+              fontWeight: 700,
+            }}>STREAK · {streak}</span>
+          )}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -939,6 +1102,9 @@ function Analyzing({ photo }) {
           box-shadow: 0 0 14px #f47820;
           animation: wmd-scanmove 1.6s linear infinite;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .wmd-scanline { animation: none; top: 50%; opacity: 0.7; }
+        }
       `}</style>
       {photo && (
         <div style={{ position: 'relative', width: '100%', maxWidth: 400, overflow: 'hidden', borderRadius: 4 }}>
@@ -957,10 +1123,12 @@ function Analyzing({ photo }) {
 }
 
 function ResultView({ result, photo, animatedConf, onReset, onShare }) {
+  const typedLabel = useTypewriter(result?.label, 32);
   if (!result) return null;
   const isDog = result.verdict === 'dog';
   const isAnimal = result.verdict === 'animal';
   const isNone = result.verdict === 'none';
+  const labelDone = typedLabel.length >= result.label.length;
 
   return (
     <div style={{
@@ -1004,7 +1172,7 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
                 color: COLORS.green,
                 lineHeight: 1,
                 textShadow: '0 2px 24px rgba(0,0,0,0.85)',
-              }}>{result.label.toUpperCase()}</div>
+              }}>{typedLabel.toUpperCase()}{!labelDone && <Caret />}</div>
               <div style={{
                 fontSize: 14,
                 color: COLORS.text,
@@ -1012,6 +1180,8 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
                 marginTop: 12,
                 fontFamily: '"IBM Plex Mono", monospace',
                 fontWeight: 700,
+                opacity: labelDone ? 1 : 0,
+                transition: 'opacity 0.4s',
               }}>{animatedConf}% CONFIDENCE</div>
             </>
           )}
@@ -1025,13 +1195,15 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
                 color: COLORS.accent,
                 lineHeight: 1,
                 textShadow: '0 2px 24px rgba(0,0,0,0.85)',
-              }}>{result.label}</div>
+              }}>{typedLabel}{!labelDone && <Caret />}</div>
               <div style={{
                 fontSize: 12,
                 color: COLORS.muted,
                 letterSpacing: 2,
                 marginTop: 12,
                 fontFamily: '"IBM Plex Mono", monospace',
+                opacity: labelDone ? 1 : 0,
+                transition: 'opacity 0.4s',
               }}>UNEXPECTED MATCH · {animatedConf}%</div>
             </>
           )}
@@ -1045,13 +1217,16 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
                 color: COLORS.text,
                 lineHeight: 1.1,
                 textShadow: '0 2px 24px rgba(0,0,0,0.85)',
-              }}>{result.label}</div>
+                minHeight: 58,
+              }}>{typedLabel}{!labelDone && <Caret />}</div>
               <div style={{
                 fontSize: 12,
                 color: COLORS.muted,
                 letterSpacing: 1.5,
                 marginTop: 16,
                 fontFamily: '"IBM Plex Mono", monospace',
+                opacity: labelDone ? 1 : 0,
+                transition: 'opacity 0.4s',
               }}>{result.subtitle}</div>
             </>
           )}
@@ -1061,6 +1236,70 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 4 }}>
         <ActionBtn primary onClick={onReset}>SCAN AGAIN</ActionBtn>
         <ActionBtn onClick={onShare}>SHARE CARD</ActionBtn>
+      </div>
+    </div>
+  );
+}
+
+function Caret() {
+  return (
+    <span style={{
+      display: 'inline-block',
+      width: '0.45ch',
+      marginLeft: 4,
+      animation: 'wmd-caret 0.9s steps(2) infinite',
+    }}>
+      <style>{`
+        @keyframes wmd-caret {
+          0%, 50% { opacity: 1; }
+          50.01%, 100% { opacity: 0; }
+        }
+      `}</style>
+      _
+    </span>
+  );
+}
+
+function SharePreview({ url, onConfirm, onCancel }) {
+  return (
+    <div
+      onClick={onCancel}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.9)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: 24,
+        gap: 20,
+      }}
+    >
+      <div style={{
+        fontFamily: '"IBM Plex Mono", monospace',
+        fontSize: 10,
+        letterSpacing: 3,
+        color: COLORS.muted,
+      }}>PREVIEW · SHARE CARD</div>
+      <img
+        src={url}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '100%',
+          maxHeight: '70vh',
+          borderRadius: 4,
+          boxShadow: '0 24px 80px rgba(0,0,0,0.8)',
+        }}
+        alt=""
+      />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}
+      >
+        <ActionBtn primary onClick={onConfirm}>SHARE</ActionBtn>
+        <ActionBtn onClick={onCancel}>CANCEL</ActionBtn>
       </div>
     </div>
   );
