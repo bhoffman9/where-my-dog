@@ -121,6 +121,44 @@ const STREAK_TIERS = [
   { at: 5, label: 'Do You Even Have a Dog?', sub: (n) => `${n} scans. Zero dogs. Just asking.` },
 ];
 
+const PUNISHMENTS = [
+  { label: 'You Have Been Given Fleas.', sub: 'This is how it begins.' },
+  { label: 'You Have Been Given Lyme Disease.', sub: 'See a doctor. And a dog.' },
+  { label: 'An Unscratchable Itch Has Arrived.', sub: 'Somewhere on your back. Forever.' },
+  { label: 'Kennel Cough.', sub: 'A labrador nods knowingly.' },
+  { label: 'Mange.', sub: 'The vet is not returning your calls.' },
+  { label: 'Tapeworm.', sub: 'A small price to pay.' },
+  { label: 'Banned from All Dog Parks.', sub: 'A restraining order, signed in paw prints.' },
+  { label: 'The Mailman Holds a Grudge.', sub: 'He remembers. He always remembers.' },
+  { label: 'Every Dog Crosses the Street.', sub: 'Word has spread through the neighborhood.' },
+  { label: 'You Smell Like a Wet Dog. Permanently.', sub: 'No soap will help.' },
+  { label: 'The Cone of Shame Has Materialized.', sub: 'You did this to yourself.' },
+  { label: 'The Squirrels Know Your Name.', sub: 'They whisper it. Loudly.' },
+  { label: 'Your Tennis Balls No Longer Bounce.', sub: 'They sit. Motionless. Judging.' },
+  { label: 'A Golden Retriever Is Disappointed in You.', sub: 'Which is, somehow, worse.' },
+  { label: 'The Neighborhood Dogs Have Held a Meeting.', sub: 'You were not invited.' },
+  { label: 'You Have Been Reported to the AKC.', sub: 'Your file is thick.' },
+  { label: 'The Pet Psychic Refuses to Look.', sub: '"No. Not this one."' },
+  { label: 'No Belly Is Rubbable to You Now.', sub: 'They all roll away.' },
+  { label: 'A Yorkie Has Passed Judgment.', sub: 'It was not favorable.' },
+  { label: 'The Dog Whisperer Will Not Return Your Calls.', sub: 'He says he is busy. He is not.' },
+  { label: 'Every Shoe You Own Has Been Pre-Chewed.', sub: 'Retroactively. By a dog you have never met.' },
+  { label: 'All Treats Crumble at Your Touch.', sub: 'This is a sign.' },
+  { label: 'Reincarnated as a Squeaky Toy.', sub: 'Chewed. Flung. Forgotten under the couch.' },
+  { label: 'The Ghost of a Good Boy Sighs.', sub: 'Audibly. In your ear.' },
+  { label: 'The Pet Store Has a Photo of You.', sub: 'Behind the counter. Circled in red.' },
+  { label: 'A Single Bark Follows You Through Dreams.', sub: 'It is getting closer.' },
+  { label: 'You Have Been Unfriended by Every Dog.', sub: 'All of them. At once.' },
+  { label: 'Your Couch Now Sheds.', sub: 'Without any dog to blame.' },
+  { label: 'A Malamute Frowns from a Great Distance.', sub: 'You feel it.' },
+  { label: 'The Dog Park Bench Refuses to Seat You.', sub: 'It has standards.' },
+];
+
+const FARM_UPSTATE = {
+  label: 'You Are Being Driven to a Farm Upstate.',
+  sub: 'Where you can run free. Don\u2019t worry.',
+};
+
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -161,12 +199,29 @@ function rollResult(hasDog) {
   if (!hasDog) {
     const streak = readStreak() + 1;
     writeStreak(streak);
+    if (streak >= 50) {
+      return {
+        verdict: 'none',
+        label: FARM_UPSTATE.label,
+        subtitle: FARM_UPSTATE.sub,
+        confidence: null,
+      };
+    }
     const tier = STREAK_TIERS.find((t) => streak === t.at);
     if (tier) {
       return {
         verdict: 'none',
         label: tier.label,
         subtitle: tier.sub(streak),
+        confidence: null,
+      };
+    }
+    if (streak > 15) {
+      const p = pick(PUNISHMENTS);
+      return {
+        verdict: 'none',
+        label: p.label,
+        subtitle: p.sub,
         confidence: null,
       };
     }
