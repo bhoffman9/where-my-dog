@@ -31,8 +31,7 @@ const ANIMALS = [
   'Dolphin', 'Orca', 'Narwhal', 'Capybara', 'Llama', 'Alpaca',
   'Vicuña', 'Tapir', 'Okapi', 'Giraffe', 'Hippopotamus', 'Rhinoceros',
   'Quokka', 'Wombat', 'Tasmanian Devil', 'Echidna', 'Platypus', 'Kangaroo',
-  'Wallaby', 'Cat', 'Mongoose', 'Goat', 'Mountain Goat', 'Sheep',
-  'Ram', 'Donkey', 'Mule', 'Pig',
+  'Wallaby', 'Mongoose',
 ];
 
 const NOT_HERE_MESSAGES = [
@@ -259,6 +258,38 @@ function loadImage(src) {
   });
 }
 
+function cameraErrorMessage(name) {
+  switch (name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return {
+        title: 'Camera access was denied.',
+        body: 'Enable camera in your browser site settings to scan live, or upload a photo instead.',
+      };
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return {
+        title: 'No camera found.',
+        body: 'This device doesn’t expose a camera. Upload a photo to continue.',
+      };
+    case 'NotReadableError':
+      return {
+        title: 'Camera is busy.',
+        body: 'Another app has the camera. Close it and reopen this tab, or upload a photo.',
+      };
+    case 'NotSupportedError':
+      return {
+        title: 'Camera not supported here.',
+        body: 'Browser does not expose a camera API. Upload a photo to continue.',
+      };
+    default:
+      return {
+        title: 'Camera unavailable.',
+        body: 'We couldn’t open the camera. Upload a photo to continue.',
+      };
+  }
+}
+
 function useTypewriter(text, speed = 30) {
   const [displayed, setDisplayed] = useState('');
   useEffect(() => {
@@ -291,8 +322,10 @@ export default function App() {
   const [noDogStreak, setNoDogStreak] = useState(() => readStreak());
   const [animatedConf, setAnimatedConf] = useState(0);
   const [modelStatus, setModelStatus] = useState('loading'); // 'loading' | 'ready' | 'error'
+  const [cameraError, setCameraError] = useState(null);
   const [shareBlob, setShareBlob] = useState(null);
   const [shareUrl, setShareUrl] = useState(null);
+  const shareUrlRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -327,8 +360,12 @@ export default function App() {
       return;
     }
     let cancelled = false;
+    setCameraError(null);
     (async () => {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw Object.assign(new Error('unsupported'), { name: 'NotSupportedError' });
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' } },
           audio: false,
@@ -341,6 +378,7 @@ export default function App() {
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch (e) {
         console.warn('camera unavailable', e);
+        if (!cancelled) setCameraError(e?.name || 'Error');
       }
     })();
     return () => {
@@ -352,22 +390,27 @@ export default function App() {
     };
   }, [view]);
 
+  useEffect(() => () => {
+    if (shareUrlRef.current) URL.revokeObjectURL(shareUrlRef.current);
+  }, []);
+
   useEffect(() => {
     if (view !== 'result' || !result?.confidence) {
       setAnimatedConf(0);
       return;
     }
     const target = result.confidence;
-    let n = 0;
-    const id = setInterval(() => {
-      n += Math.max(1, Math.ceil(target / 28));
-      if (n >= target) {
-        n = target;
-        clearInterval(id);
-      }
-      setAnimatedConf(n);
-    }, 33);
-    return () => clearInterval(id);
+    const duration = 900;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setAnimatedConf(Math.round(target * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [view, result]);
 
   async function processPhoto(dataUrl) {
@@ -509,8 +552,9 @@ export default function App() {
 
       canvas.toBlob((blob) => {
         if (!blob) return;
-        if (shareUrl) URL.revokeObjectURL(shareUrl);
+        if (shareUrlRef.current) URL.revokeObjectURL(shareUrlRef.current);
         const url = URL.createObjectURL(blob);
+        shareUrlRef.current = url;
         setShareBlob(blob);
         setShareUrl(url);
       }, 'image/png');
@@ -530,19 +574,17 @@ export default function App() {
   }
 
   function cancelShare() {
-    if (shareUrl) URL.revokeObjectURL(shareUrl);
+    if (shareUrlRef.current) URL.revokeObjectURL(shareUrlRef.current);
+    shareUrlRef.current = null;
     setShareBlob(null);
     setShareUrl(null);
   }
 
   function rerollWelcomePun() {
     const pool = PUNS_WITH_POSTERS.length ? PUNS_WITH_POSTERS : MOVIE_PUNS;
-    if (pool.length < 2) return;
-    let next;
-    do {
-      next = pick(pool);
-    } while (next.dog === welcomePun.dog);
-    setWelcomePun(next);
+    const others = pool.filter((p) => p.dog !== welcomePun.dog);
+    if (!others.length) return;
+    setWelcomePun(pick(others));
   }
 
   function downloadBlob(blob) {
@@ -584,6 +626,8 @@ export default function App() {
             onCapture={capturePhoto}
             fileInputRef={fileInputRef}
             onFileUpload={handleFileUpload}
+            modelStatus={modelStatus}
+            cameraError={cameraError}
           />
         )}
         {view === 'analyzing' && <Analyzing photo={photo} />}
@@ -679,11 +723,11 @@ function EntranceView({ pun, onEnter, onNextPun }) {
         color: COLORS.muted,
       }}>WELCOME TO</div>
 
-      <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div style={{ position: 'relative', flexShrink: 0, width: 'min(240px, 60vw)' }}>
         <div
           onClick={() => imgLoaded && setZoomed(true)}
           style={{
-            width: 'min(240px, 60vw)',
+            width: '100%',
             aspectRatio: '2/3',
             background: COLORS.surface,
             borderRadius: 4,
@@ -753,26 +797,28 @@ function EntranceView({ pun, onEnter, onNextPun }) {
         </div>
         {onNextPun && (
           <button
-            onClick={onNextPun}
+            onClick={(e) => { e.stopPropagation(); onNextPun(); }}
             aria-label="Next poster"
             style={{
               position: 'absolute',
-              top: '50%',
-              right: -52,
-              transform: 'translateY(-50%)',
-              width: 36,
-              height: 36,
+              bottom: 8,
+              right: 8,
+              width: 34,
+              height: 34,
               borderRadius: '50%',
-              background: COLORS.surface,
-              border: `1px solid ${COLORS.primary}44`,
+              background: 'rgba(11,13,16,0.75)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
+              border: `1px solid ${COLORS.primary}66`,
               color: COLORS.primary,
               fontFamily: '"IBM Plex Mono", monospace',
-              fontSize: 16,
+              fontSize: 14,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               padding: 0,
+              zIndex: 3,
             }}
           >▸</button>
         )}
@@ -917,7 +963,7 @@ function Header({ view, setView, modelStatus, streak }) {
         <div style={{ fontSize: 10, color: statusColor, letterSpacing: 1.5, marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={isLoading ? { animation: 'wmd-dotpulse 1.2s ease-in-out infinite' } : undefined}>●</span>
           <span>{statusText}</span>
-          {streak > 0 && (
+          {streak >= 5 && (
             <span style={{
               marginLeft: 4,
               padding: '2px 8px',
@@ -933,7 +979,7 @@ function Header({ view, setView, modelStatus, streak }) {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <TabBtn
-          active={view === 'camera' || view === 'analyzing' || view === 'result'}
+          active={view === 'camera' || view === 'analyzing'}
           onClick={() => setView('camera')}
         >SCAN</TabBtn>
         <TabBtn active={view === 'log'} onClick={() => setView('log')}>LOG</TabBtn>
@@ -962,7 +1008,10 @@ function TabBtn({ active, onClick, children }) {
   );
 }
 
-function CameraView({ videoRef, canvasRef, onCapture, fileInputRef, onFileUpload }) {
+function CameraView({ videoRef, canvasRef, onCapture, fileInputRef, onFileUpload, modelStatus, cameraError }) {
+  const detectorReady = modelStatus === 'ready' || modelStatus === 'error';
+  const captureDisabled = !!cameraError || !detectorReady;
+  const cameraErrorCopy = cameraErrorMessage(cameraError);
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 16 }}>
       <div style={{
@@ -991,33 +1040,83 @@ function CameraView({ videoRef, canvasRef, onCapture, fileInputRef, onFileUpload
           top: 12,
           left: 12,
           fontSize: 10,
-          color: COLORS.primary,
+          color: cameraError ? COLORS.red : COLORS.primary,
           letterSpacing: 1.5,
           background: 'rgba(0,0,0,0.55)',
           padding: '4px 8px',
           fontFamily: '"IBM Plex Mono", monospace',
         }}>
-          ◉ LIVE · SCANNING
+          {cameraError ? '◉ CAMERA OFFLINE' : '◉ LIVE · SCANNING'}
         </div>
+        {cameraError && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(11,13,16,0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 32,
+            textAlign: 'center',
+            gap: 14,
+          }}>
+            <div style={{
+              fontFamily: '"Playfair Display", serif',
+              fontStyle: 'italic',
+              fontWeight: 700,
+              fontSize: 28,
+              color: COLORS.text,
+              lineHeight: 1.15,
+            }}>{cameraErrorCopy.title}</div>
+            <div style={{
+              fontSize: 12,
+              color: COLORS.muted,
+              letterSpacing: 1.2,
+              fontFamily: '"IBM Plex Mono", monospace',
+              maxWidth: 320,
+              lineHeight: 1.5,
+            }}>{cameraErrorCopy.body}</div>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                marginTop: 8,
+                background: 'transparent',
+                color: COLORS.primary,
+                border: `2px solid ${COLORS.primary}`,
+                padding: '10px 24px',
+                fontFamily: '"IBM Plex Mono", monospace',
+                fontWeight: 700,
+                fontSize: 11,
+                letterSpacing: 4,
+                cursor: 'pointer',
+                borderRadius: 2,
+              }}
+            >[ UPLOAD A PHOTO ]</button>
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 24, gap: 10 }}>
         <button
-          onClick={onCapture}
+          onClick={captureDisabled ? undefined : onCapture}
+          disabled={captureDisabled}
           style={{
             width: 84,
             height: 84,
             borderRadius: '50%',
-            background: COLORS.primary,
-            border: '4px solid #fff',
-            boxShadow: `0 0 0 4px ${COLORS.primary}33`,
-            cursor: 'pointer',
+            background: captureDisabled ? COLORS.surface : COLORS.primary,
+            border: `4px solid ${captureDisabled ? COLORS.muted : '#fff'}`,
+            boxShadow: captureDisabled ? 'none' : `0 0 0 4px ${COLORS.primary}33`,
+            cursor: captureDisabled ? 'not-allowed' : 'pointer',
             padding: 0,
+            opacity: captureDisabled ? 0.7 : 1,
+            transition: 'background 0.2s, border 0.2s, opacity 0.2s',
           }}
           aria-label="Capture"
         />
         <div style={{ fontSize: 11, color: COLORS.muted, letterSpacing: 1.5, marginTop: 4 }}>
-          TAP TO SCAN FOR DOG
+          {cameraError ? 'CAMERA UNAVAILABLE' : !detectorReady ? 'DETECTOR WARMING UP…' : 'TAP TO SCAN FOR DOG'}
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
