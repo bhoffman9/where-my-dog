@@ -336,12 +336,23 @@ export default function App() {
     let cancelled = false;
     (async () => {
       try {
-        const tf = await import('@tensorflow/tfjs');
-        const cocoSsd = await import('@tensorflow-models/coco-ssd');
-        await tf.ready();
-        const model = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
-        if (cancelled) return;
-        modelRef.current = model;
+        const { ObjectDetector, FilesetResolver } = await import('@mediapipe/tasks-vision');
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
+        );
+        const detector = await ObjectDetector.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite',
+          },
+          scoreThreshold: 0.4,
+          maxResults: 10,
+          runningMode: 'IMAGE',
+        });
+        if (cancelled) {
+          detector.close?.();
+          return;
+        }
+        modelRef.current = detector;
         setModelStatus('ready');
       } catch (e) {
         console.warn('detector load failed', e);
@@ -422,8 +433,10 @@ export default function App() {
     if (modelRef.current) {
       try {
         const img = await loadImage(dataUrl);
-        const predictions = await modelRef.current.detect(img);
-        hasDog = predictions.some((p) => p.class === 'dog' && p.score >= 0.5);
+        const res = modelRef.current.detect(img);
+        hasDog = !!res?.detections?.some((d) =>
+          d.categories?.some((c) => c.categoryName === 'dog' && c.score >= 0.5)
+        );
       } catch (e) {
         console.warn('detection failed', e);
         hasDog = Math.random() < 0.5;
