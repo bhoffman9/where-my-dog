@@ -154,7 +154,7 @@ OPENAI_API_KEY=sk-... npm run posters
 
 ## Result Screen Treatment
 
-- **Badge at top (always):** `DOG ✓` (green, Barlow 900) or `NO DOG ✗` (red) so the verdict is unambiguous even when the tagline is poetic ("The Ghost of a Dog")
+- **Badge at top (always):** `DOG ✓` (green, Barlow 900) or `NO DOG ✗` (cool gray `absent`) so the verdict is unambiguous even when the tagline is poetic ("The Ghost of a Dog"). The NO DOG badge is intentionally *not* red — red is reserved for true errors.
 - **Dog Is Here** — bold green Barlow Condensed, all caps, typewriter reveal, confidence counter fades in after label completes (eased rAF over 900ms)
 - **Random animal** — italic gold Playfair, "UNEXPECTED MATCH · NN%"
 - **Not Here** — italic white Playfair, tier message or random subtitle from the 32-line classy pool
@@ -182,9 +182,12 @@ Result screen has a SHARE CARD button → renders 1080×1920 PNG via Canvas (sto
 | Primary | `#f47820` | Orange accent |
 | Accent | `#f5c542` | Yellow / surprise animal |
 | Green | `#3ddc84` | DOG ✓ verdict, detector online |
-| Red | `#ff5252` | NO DOG ✗ verdict, errors, high-streak chip |
+| Red | `#ff5252` | **True errors only** — camera denied, CLEAR log button |
+| Absent | `#8a95a5` | NO DOG ✗ verdict, streak-chip at 15+ (classy-sad, not alarming) |
 | Text | `#e8eaf0` | Primary text |
 | Muted | `#5a6370` | Secondary text |
+
+**Red vs Absent:** The palette intentionally separates *errors* (red — something is broken, the user should act) from *narrative absence* (absent — the dog isn't here, this is poetic not alarming). When adding new UI, pick red only if the user is expected to do something about it; otherwise use absent.
 
 ## Code Conventions
 

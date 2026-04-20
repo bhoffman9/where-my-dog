@@ -12,7 +12,8 @@ const COLORS = {
   muted: '#5a6370',
   accent: '#f5c542',
   green: '#3ddc84',
-  red: '#ff5252',
+  red: '#ff5252',   // reserved for TRUE errors only (camera denied, CLEAR log)
+  absent: '#8a95a5', // NO DOG verdict — cool gray, classy-sad, not alarming
 };
 
 const ANIMALS = [
@@ -982,7 +983,7 @@ function Header({ view, setView, modelStatus, streak }) {
               padding: '2px 8px',
               border: `1px solid ${COLORS.muted}66`,
               borderRadius: 12,
-              color: streak >= 15 ? COLORS.red : streak >= 10 ? COLORS.accent : COLORS.muted,
+              color: streak >= 15 ? COLORS.absent : streak >= 10 ? COLORS.accent : COLORS.muted,
               fontSize: 9,
               letterSpacing: 1.5,
               fontWeight: 700,
@@ -1273,16 +1274,16 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
           transform: 'translateX(-50%)',
           padding: '10px 28px',
           background: 'rgba(11,13,16,0.78)',
-          border: `2px solid ${isNone ? COLORS.red : COLORS.green}`,
+          border: `2px solid ${isNone ? COLORS.absent : COLORS.green}`,
           borderRadius: 2,
           fontFamily: '"Barlow Condensed", sans-serif',
           fontSize: 'clamp(26px, 5.5vw, 38px)',
           letterSpacing: 4,
           fontWeight: 900,
-          color: isNone ? COLORS.red : COLORS.green,
+          color: isNone ? COLORS.absent : COLORS.green,
           zIndex: 2,
           whiteSpace: 'nowrap',
-          textShadow: `0 0 18px ${isNone ? 'rgba(255,82,82,0.35)' : 'rgba(61,220,132,0.35)'}`,
+          textShadow: `0 0 18px ${isNone ? 'rgba(138,149,165,0.35)' : 'rgba(61,220,132,0.35)'}`,
           boxShadow: `0 4px 24px rgba(0,0,0,0.5)`,
         }}>
           {isNone ? 'NO DOG ✗' : 'DOG ✓'}
