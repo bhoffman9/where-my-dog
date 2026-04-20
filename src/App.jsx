@@ -1156,6 +1156,25 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
         }} />
         <div style={{
           position: 'absolute',
+          top: 14,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '6px 14px',
+          background: isNone ? 'rgba(11,13,16,0.75)' : 'rgba(11,13,16,0.65)',
+          border: `1px solid ${isNone ? `${COLORS.muted}aa` : COLORS.green}`,
+          borderRadius: 2,
+          fontFamily: '"IBM Plex Mono", monospace',
+          fontSize: 11,
+          letterSpacing: 2.5,
+          fontWeight: 700,
+          color: isNone ? COLORS.muted : COLORS.green,
+          zIndex: 2,
+          whiteSpace: 'nowrap',
+        }}>
+          {isNone ? 'NO DOG ✗' : 'DOG ✓'}
+        </div>
+        <div style={{
+          position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
