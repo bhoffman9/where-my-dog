@@ -1156,20 +1156,22 @@ function ResultView({ result, photo, animatedConf, onReset, onShare }) {
         }} />
         <div style={{
           position: 'absolute',
-          top: 14,
+          top: 16,
           left: '50%',
           transform: 'translateX(-50%)',
-          padding: '6px 14px',
-          background: isNone ? 'rgba(11,13,16,0.75)' : 'rgba(11,13,16,0.65)',
-          border: `1px solid ${isNone ? `${COLORS.muted}aa` : COLORS.green}`,
+          padding: '10px 28px',
+          background: 'rgba(11,13,16,0.78)',
+          border: `2px solid ${isNone ? COLORS.red : COLORS.green}`,
           borderRadius: 2,
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontSize: 11,
-          letterSpacing: 2.5,
-          fontWeight: 700,
-          color: isNone ? COLORS.muted : COLORS.green,
+          fontFamily: '"Barlow Condensed", sans-serif',
+          fontSize: 'clamp(26px, 5.5vw, 38px)',
+          letterSpacing: 4,
+          fontWeight: 900,
+          color: isNone ? COLORS.red : COLORS.green,
           zIndex: 2,
           whiteSpace: 'nowrap',
+          textShadow: `0 0 18px ${isNone ? 'rgba(255,82,82,0.35)' : 'rgba(61,220,132,0.35)'}`,
+          boxShadow: `0 4px 24px rgba(0,0,0,0.5)`,
         }}>
           {isNone ? 'NO DOG ✗' : 'DOG ✓'}
         </div>
