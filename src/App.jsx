@@ -309,7 +309,7 @@ function useTypewriter(text, speed = 30) {
 
 
 export default function App() {
-  const [view, setView] = useState('entrance');
+  const [view, setView] = useState('welcome');
   const [welcomePun, setWelcomePun] = useState(() => pick(PUNS_WITH_POSTERS.length ? PUNS_WITH_POSTERS : MOVIE_PUNS));
   const [result, setResult] = useState(null);
   const [photo, setPhoto] = useState(null);
@@ -628,8 +628,11 @@ export default function App() {
       paddingBottom: 'env(safe-area-inset-bottom)',
       paddingTop: 'env(safe-area-inset-top)',
     }}>
-      {view !== 'entrance' && <Header view={view} setView={setView} modelStatus={modelStatus} streak={noDogStreak} />}
+      {view !== 'entrance' && view !== 'welcome' && <Header view={view} setView={setView} modelStatus={modelStatus} streak={noDogStreak} />}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {view === 'welcome' && (
+          <WelcomeView onContinue={() => setView('entrance')} />
+        )}
         {view === 'entrance' && (
           <EntranceView pun={welcomePun} onEnter={() => setView('camera')} onNextPun={rerollWelcomePun} />
         )}
@@ -659,6 +662,147 @@ export default function App() {
       {shareUrl && (
         <SharePreview url={shareUrl} onConfirm={confirmShare} onCancel={cancelShare} />
       )}
+    </div>
+  );
+}
+
+function WelcomeView({ onContinue }) {
+  const [userCount, setUserCount] = useState(8.142);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setUserCount((n) => +(n + (Math.random() * 0.003 - 0.001)).toFixed(3));
+    }, 180);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div style={{
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '64px 24px 40px',
+      textAlign: 'center',
+      position: 'relative',
+      gap: 28,
+      overflow: 'hidden',
+    }}>
+      <style>{`
+        @keyframes wmd-welcome-pulse {
+          0%, 100% { opacity: 0.35; transform: scale(1); }
+          50% { opacity: 0.55; transform: scale(1.04); }
+        }
+        @keyframes wmd-welcome-fade {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes wmd-welcome-blink {
+          0%, 49% { opacity: 1; }
+          50%, 100% { opacity: 0; }
+        }
+      `}</style>
+
+      <div style={{
+        position: 'absolute',
+        width: 'min(520px, 90vw)',
+        height: 'min(520px, 90vw)',
+        borderRadius: '50%',
+        background: `radial-gradient(circle, ${COLORS.primary}33 0%, transparent 65%)`,
+        animation: 'wmd-welcome-pulse 4s ease-in-out infinite',
+        pointerEvents: 'none',
+      }} />
+
+      <div style={{
+        fontFamily: '"IBM Plex Mono", monospace',
+        fontSize: 10,
+        letterSpacing: 6,
+        color: COLORS.muted,
+        animation: 'wmd-welcome-fade 0.6s ease-out both',
+      }}>EST. 2026 · GLOBAL DEPLOYMENT</div>
+
+      <div style={{
+        fontFamily: '"Playfair Display", serif',
+        fontStyle: 'italic',
+        fontWeight: 900,
+        fontSize: 'clamp(40px, 9vw, 78px)',
+        color: COLORS.text,
+        lineHeight: 1.02,
+        maxWidth: 820,
+        animation: 'wmd-welcome-fade 0.8s ease-out 0.15s both',
+      }}>
+        Welcome to the<br />
+        <span style={{ color: COLORS.primary, textShadow: '0 4px 32px rgba(244,120,32,0.35)' }}>
+          Future of Dog
+        </span>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        animation: 'wmd-welcome-fade 0.8s ease-out 0.4s both',
+      }}>
+        <div style={{
+          fontFamily: '"Barlow Condensed", sans-serif',
+          fontWeight: 800,
+          fontSize: 'clamp(26px, 5vw, 38px)',
+          letterSpacing: 2,
+          color: COLORS.green,
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 10,
+        }}>
+          <span style={{
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: COLORS.green,
+            display: 'inline-block',
+            animation: 'wmd-welcome-blink 1.4s infinite',
+          }} />
+          {userCount.toFixed(3)} BILLION
+        </div>
+        <div style={{
+          fontFamily: '"IBM Plex Mono", monospace',
+          fontSize: 11,
+          letterSpacing: 4,
+          color: COLORS.muted,
+        }}>USERS WORLDWIDE</div>
+      </div>
+
+      <button
+        onClick={onContinue}
+        style={{
+          background: 'transparent',
+          color: COLORS.primary,
+          border: `2px solid ${COLORS.primary}`,
+          padding: '16px 56px',
+          fontFamily: '"IBM Plex Mono", monospace',
+          fontWeight: 700,
+          fontSize: 14,
+          letterSpacing: 8,
+          cursor: 'pointer',
+          borderRadius: 2,
+          transition: 'background 0.15s, color 0.15s',
+          marginTop: 12,
+          animation: 'wmd-welcome-fade 0.8s ease-out 0.65s both',
+        }}
+        onMouseDown={(e) => { e.currentTarget.style.background = COLORS.primary; e.currentTarget.style.color = '#000'; }}
+        onMouseUp={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = COLORS.primary; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = COLORS.primary; }}
+      >[ BEGIN ]</button>
+
+      <div style={{
+        fontFamily: '"IBM Plex Mono", monospace',
+        fontSize: 8,
+        letterSpacing: 2,
+        color: COLORS.muted,
+        opacity: 0.6,
+        animation: 'wmd-welcome-fade 0.8s ease-out 0.9s both',
+      }}>A WHERE MY DOG PRODUCTION</div>
     </div>
   );
 }
@@ -880,25 +1024,72 @@ function EntranceView({ pun, onEnter, onNextPun }) {
         </div>
       </div>
 
+      <style>{`
+        @keyframes wmd-doghouse-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(244,120,32,0.55), 0 12px 40px rgba(244,120,32,0.35); }
+          50% { box-shadow: 0 0 0 18px rgba(244,120,32,0), 0 12px 40px rgba(244,120,32,0.5); }
+        }
+        @keyframes wmd-doghouse-bob {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+      `}</style>
       <button
         onClick={onEnter}
+        aria-label="Find My Dog"
         style={{
-          background: 'transparent',
-          color: COLORS.primary,
-          border: `2px solid ${COLORS.primary}`,
-          padding: '16px 48px',
-          fontFamily: '"IBM Plex Mono", monospace',
-          fontWeight: 700,
-          fontSize: 14,
-          letterSpacing: 8,
+          background: `linear-gradient(180deg, ${COLORS.primary} 0%, #d6621a 100%)`,
+          border: `3px solid ${COLORS.primary}`,
+          padding: '18px 36px 14px',
           cursor: 'pointer',
-          borderRadius: 2,
-          transition: 'background 0.15s, color 0.15s',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 8,
+          color: '#0b0d10',
+          borderRadius: 14,
+          transition: 'transform 0.12s ease-out',
+          animation: 'wmd-doghouse-pulse 2.4s ease-in-out infinite',
         }}
-        onMouseDown={(e) => { e.currentTarget.style.background = COLORS.primary; e.currentTarget.style.color = '#000'; }}
-        onMouseUp={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = COLORS.primary; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = COLORS.primary; }}
-      >[ ENTER ]</button>
+        onMouseDown={(e) => { e.currentTarget.style.transform = 'translateY(2px) scale(0.97)'; }}
+        onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(1)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0) scale(1)'; }}
+      >
+        <div style={{ animation: 'wmd-doghouse-bob 2s ease-in-out infinite' }}>
+          <svg
+            width="108"
+            height="96"
+            viewBox="0 0 88 80"
+            fill="none"
+            stroke="#0b0d10"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {/* roof */}
+            <path d="M6 36 L44 8 L82 36" />
+            {/* roof ridge beam */}
+            <path d="M16 36 L44 16 L72 36" strokeOpacity="0.45" strokeWidth="2" />
+            {/* walls */}
+            <path d="M14 34 L14 72 L74 72 L74 34" />
+            {/* arched doorway — dark cutout */}
+            <path d="M32 72 L32 54 Q32 44 44 44 Q56 44 56 54 L56 72 Z" fill="#0b0d10" stroke="#0b0d10" />
+            {/* nameplate */}
+            <rect x="36" y="22" width="16" height="7" rx="1" strokeOpacity="0.85" />
+            {/* bone on nameplate */}
+            <path d="M39 25.5 L49 25.5" strokeWidth="2.5" />
+          </svg>
+        </div>
+        <span style={{
+          fontFamily: '"Barlow Condensed", sans-serif',
+          fontWeight: 900,
+          fontSize: 22,
+          letterSpacing: 4,
+          color: '#0b0d10',
+          textTransform: 'uppercase',
+        }}>Find My Dog</span>
+      </button>
       {zoomed && (
         <div
           onClick={() => setZoomed(false)}
