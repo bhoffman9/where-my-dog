@@ -9,7 +9,7 @@ Camera app that uses **real** in-browser dog detection (MediaPipe EfficientDet-L
 
 ## Local Path
 
-`c:\Users\hoffm\Desktop\Ben\where-my-dog\`
+`c:\Users\hoffm\Desktop\Personal\where-my-dog\`
 
 ## Tech Stack
 
@@ -62,7 +62,8 @@ where-my-dog/
 
 | View | Trigger | Purpose |
 |------|---------|---------|
-| `entrance` | Initial load | Welcome screen — random pun (poster-filtered) + AI poster + ENTER. Tap poster to zoom, ▸ for next poster. |
+| `welcome` | Initial load | Cinematic splash — "Welcome to the Future of Dog" + live-jittering "8.142 BILLION USERS WORLDWIDE" counter + `[ BEGIN ]`. Pulsing orange halo, staggered fade-ins. Header is hidden on this view. |
+| `entrance` | `[ BEGIN ]` from welcome | Random pun (poster-filtered) + AI poster + orange dog-house "FIND MY DOG" button (pulsing halo + bobbing icon). Tap poster to zoom, ▸ for next poster. Header is hidden on this view. |
 | `camera` | Click ENTER or SCAN tab | Live camera viewfinder + capture button. If camera permission denied / unsupported, shows a Playfair "Camera access denied" panel with an upload fallback. Capture button is disabled until detector is ready. |
 | `analyzing` | After capture | 1.5–2.3s scan-line animation while MediaPipe runs detection. `prefers-reduced-motion` pins the scan line. |
 | `result` | After analysis | Verdict badge (DOG ✓ green / NO DOG ✗ red) pinned to the top of the photo, typewriter label revealing below, confidence counter fades in after label completes. |
